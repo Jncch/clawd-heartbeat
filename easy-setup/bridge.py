@@ -29,7 +29,7 @@ PORT = 47801
 BAUD = 115200
 KNOWN_VIDS = {0x1A86, 0x0403, 0x10C4}   # CH9102/CH340, FTDI, CP210x
 STATES = {"idle", "tool", "wait", "done", "err"}
-LOG = Path.home() / ".claude" / "clawd-heartbeat" / "bridge.log"
+LOG = Path(__file__).resolve().parent / "bridge.log"   # setup.py が配置した場所(--claude-dir に追従)
 
 
 def log(msg: str) -> None:
@@ -181,6 +181,13 @@ class Handler(BaseHTTPRequestHandler):
             body = link.status()
             return self.reply(200, body) if body else self.reply(503, "atom not connected\n")
         if u.path == "/quit":   # setup.py がシリアルポートを使う前に止める(Windows 用)
+            # 応答より先にポートを閉じ、HTTP が止まった時点でポートが空いていることを保証する
+            # (Windows ではプロセスの終了とポートの解放が HTTP の停止より遅れ、setup.py が開けなかった。実測)
+            with link.lock:
+                if link.ser is not None:
+                    link.ser.close()
+                    link.ser = None
+                link.retry_at = float("inf")   # 終了までに来た要求で開き直さない
             self.reply(200, "bye\n")
             threading.Thread(target=self.server.shutdown, daemon=True).start()
             return
