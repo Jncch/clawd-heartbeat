@@ -172,13 +172,22 @@ def find_port(explicit: str | None) -> str:
 def open_serial(port: str) -> serial.Serial:
     # Atom は DTR/RTS が EN/IO0 につながっており、普通に開くとリセットがかかる。
     # 開く前に両方 False にしておく(docs/NOTES.md と同じ手順)
-    s = serial.Serial()
-    s.port = port
-    s.baudrate = BAUD
-    s.timeout = 0.2
-    s.dtr = False
-    s.rts = False
-    s.open()
+    # Windows の COM ポートは 1 プロセスしか開けず、閉じた直後(esptool の終了直後や
+    # bridge の停止直後)はまだ解放されておらずアクセス拒否になることがあるので、少し待って再試行する
+    for attempt in range(10):
+        s = serial.Serial()
+        s.port = port
+        s.baudrate = BAUD
+        s.timeout = 0.2
+        s.dtr = False
+        s.rts = False
+        try:
+            s.open()
+            break
+        except serial.SerialException as e:
+            if attempt == 9:
+                die(f"{port} を開けません: {e}\n    (他のアプリ(シリアルモニタ、Arduino IDE、bridge 等)が使っていないか確認してください)")
+            time.sleep(0.5)
     # それでも環境によっては(macOS + FTDI 版で実測)開いた瞬間にリセットされる。
     # 起動中(約 0.5 秒)に送ったコマンドは取りこぼされるので、起動が終わるまで待つ
     time.sleep(1.5)
@@ -208,16 +217,13 @@ def read_until(s: serial.Serial, pred, timeout: float, echo: bool = False):
 
 def probe(port: str) -> str | None:
     """CLAWD? に応答すればその行を返す(easy-setup 版ファームが動いている)"""
-    try:
-        with open_serial(port) as s:
-            for _ in range(3):
-                s.reset_input_buffer()
-                s.write(b"\nCLAWD?\n")
-                line = read_until(s, lambda l: l if l.startswith("CLAWD ") else None, 1.5)
-                if line:
-                    return line
-    except serial.SerialException as e:
-        die(f"{port} を開けません: {e}\n    (他のアプリ(シリアルモニタ等)が使っていないか確認してください)")
+    with open_serial(port) as s:
+        for _ in range(3):
+            s.reset_input_buffer()
+            s.write(b"\nCLAWD?\n")
+            line = read_until(s, lambda l: l if l.startswith("CLAWD ") else None, 1.5)
+            if line:
+                return line
     return None
 
 
