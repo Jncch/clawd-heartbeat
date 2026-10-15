@@ -1,14 +1,16 @@
 # かんたんセットアップ(実験版)
 
 PlatformIO も `secrets.h` の編集も不要で、**USB でつないでコマンド 1 つ**で
-ファームウェア書き込み → 接続設定 → hook 設定まで終わらせる方式です。macOS / Windows / Linux 対応。
+ファームウェア書き込み → 接続設定 → hook 設定まで終わらせる方式です。
 
-接続方式は 2 つから選べます。
+接続方式は 2 つあります。
 
-| 方式 | 経路 | 向いている環境 |
-| --- | --- | --- |
-| **WiFi** | hook → HTTP → Atom | 自宅など。Atom を PC から離して置ける |
-| **USB** | hook → HTTP → bridge(PC に常駐)→ USB シリアル → Atom | 社内ネットワークなど、WiFi が使えない・端末同士が通信できない環境 |
+| 方式 | 経路 | 向いている環境 | 対応 OS |
+| --- | --- | --- | --- |
+| **WiFi** | hook → HTTP → Atom | 自宅など。Atom を PC から離して置ける | macOS / Linux |
+| **USB** | hook → HTTP → bridge(PC に常駐)→ USB シリアル → Atom | 社内ネットワークなど、WiFi が使えない・端末同士が通信できない環境 | macOS / Windows / Linux |
+
+Windows は USB モードのみです(WiFi モードは検証で接続まで確認できなかったため対象外)。Windows で WiFi 接続にしたい場合は、通常版の手順(PlatformIO + `secrets.h`)を使ってください。
 
 > 通常版(リポジトリ直下の `src/` + `secrets.h`)とは独立しています。
 > こちらのファームウェアを書き込むと、Atom の中身は easy-setup 版に置き換わります。
@@ -40,11 +42,11 @@ uv run setup.py
 
 あとは画面の質問に答えるだけです。
 
-1. **接続方式** — WiFi / USB を選ぶ(`--mode wifi` / `--mode usb` で指定も可)
+1. **接続方式** — WiFi / USB を選ぶ(`--mode wifi` / `--mode usb` で指定も可。Windows は質問せず USB)
 2. **書き込み** — Atom を自動検出してファームウェアを書き込む
 3. **接続設定**
    - WiFi: PC が今つないでいる WiFi の名前を取得し、保存済みのパスワードを PC から取り出す
-     (macOS はキーチェーンの確認ダイアログ、Windows は `netsh`)。取り出せなければ手入力。
+     (macOS はキーチェーンの確認ダイアログ、Linux は NetworkManager)。取り出せなければ手入力。
      その後 `atom.local` で届くかを確認し、届かなければ IP を使う
    - USB: Atom を USB モードに切り替え、中継プログラム(bridge)を PC に常駐させる
 4. **hook** — `~/.claude/led.sh` を配置し、`~/.claude/settings.json` に hook を追加する
@@ -86,11 +88,9 @@ bridge はシリアルポートを開いたままにします(Atom はポート�
 | 症状 | 対処 |
 | --- | --- |
 | Atom が見つからない | 充電専用ケーブルでないか確認。Windows は USB-シリアルのドライバが必要な場合あり(setup.py がドライバなしで認識されている機器を表示する)。FTDI 版(VID_0403)は Windows Update のオプションの更新プログラムか [FTDI 公式 VCP ドライバ](https://ftdichip.com/drivers/vcp-drivers/)、CH9102 版(VID_1A86)は WCH の CH343SER ドライバ |
-| Windows で WiFi 名が自動で出ない | Windows 11 24H2 以降は位置情報の許可がないと SSID を取得できない。設定 → プライバシーとセキュリティ → 位置情報 を許可するか、手入力する |
 | 書き込みに失敗する | Atom のボタン(LED 面)を押しながら USB を挿し直して再実行 |
 | SSID が見つからない | Atom は 2.4GHz のみ対応。5GHz 専用の SSID は使えない |
 | macOS で WiFi 名が自動で出ない | 最近の macOS は位置情報の許可がないと SSID を取得できない。手入力すれば、パスワードはキーチェーンから取得できる |
-| Windows でパスワードを取得できない | 保存済みパスワードを読めるのは管理者として実行したときだけ。PowerShell を「管理者として実行」で開いて実行するか、手入力する |
 | PC から Atom に届かない | ゲスト WiFi や AP アイソレーションのある環境では端末同士が通信できない。USB モードを使う |
 | USB モードで LED が変わらない | `~/.claude/clawd-heartbeat/bridge.log` を確認。`curl http://127.0.0.1:47801/` が 503 なら Atom が見つかっていない |
 

@@ -5,7 +5,7 @@
 #   "esptool==4.8.1",
 # ]
 # ///
-"""Clawd Heartbeat かんたんセットアップ(macOS / Windows / Linux)
+"""Clawd Heartbeat かんたんセットアップ(macOS / Linux は WiFi・USB、Windows は USB のみ)
 
     uv run setup.py                # 書き込み → 接続方式(WiFi / USB)の設定 → 疎通確認 → hook 設定
     uv run setup.py --wifi-only    # WiFi だけ設定し直す(ネットワークを変えたとき)
@@ -29,7 +29,6 @@ import shutil
 import socket
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 import urllib.error
@@ -106,7 +105,7 @@ def mask(pw: str) -> str:
 
 
 def decode(b: bytes) -> str:
-    # Windows の netsh はコードページ 932 の環境でもパイプ経由だと UTF-8 で出す(実測)ので、
+    # Windows のコマンドはコードページ 932 の環境でもパイプ経由だと UTF-8 で出すことがある(netsh で実測)ので、
     # UTF-8 で読めなければロケールの文字コードで読み直す
     try:
         return b.decode("utf-8")
@@ -282,11 +281,6 @@ def current_ssid() -> str | None:
             m = re.search(r"Current Wi-Fi Network: (.+)", out)
             if m:
                 return m.group(1).strip()
-        elif sysname == "Windows":
-            out = run(["netsh", "wlan", "show", "interfaces"]).stdout
-            m = re.search(r"^\s*SSID\s*:\s*(.+)$", out, re.M)   # BSSID 行には一致しない
-            if m:
-                return m.group(1).strip()
         else:
             out = run(["nmcli", "-t", "-f", "active,ssid", "dev", "wifi"]).stdout
             for line in out.splitlines():
@@ -304,21 +298,6 @@ def saved_password(ssid: str) -> str | None:
             # キーチェーンへのアクセス許可ダイアログが出る
             r = run(["security", "find-generic-password", "-D", "AirPort network password", "-a", ssid, "-w"])
             return r.stdout.rstrip("\n") if r.returncode == 0 else None
-        if sysname == "Windows":
-            # show profile の出力は言語ごとに文言が変わるので、XML で書き出して読む
-            with tempfile.TemporaryDirectory() as d:
-                run(["netsh", "wlan", "export", "profile", f"name={ssid}", "key=clear", f"folder={d}"])
-                for f in Path(d).glob("*.xml"):
-                    xml = f.read_text("utf-8", "replace")
-                    # 平文で書き出されるのは管理者として実行したときだけ。
-                    # それ以外は暗号化された値(protected=true)なので使えない
-                    if re.search(r"<protected>\s*true\s*</protected>", xml):
-                        info("パスワードが暗号化されていて読めません(管理者として実行した PowerShell なら取得できます)")
-                        return None
-                    m = re.search(r"<keyMaterial>(.*?)</keyMaterial>", xml)
-                    if m:
-                        return m.group(1)
-            return None
         r = run(["nmcli", "-s", "-g", "802-11-wireless-security.psk", "connection", "show", ssid])
         return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
     except FileNotFoundError:
@@ -333,20 +312,13 @@ def ask_wifi() -> tuple[str, str]:
             ssid = None
     else:
         # macOS は位置情報の許可がないと SSID が伏せられる(パスワードは SSID さえ分かれば取れる)
-        # Windows 11 24H2 以降も位置情報の許可がないと netsh wlan show interfaces が失敗する(実測)
-        if platform.system() == "Windows":
-            info("WiFi 名(SSID)を自動取得できませんでした。タスクバーの WiFi アイコンで確認して入力してください")
-            info("(設定 → プライバシーとセキュリティ → 位置情報 を許可すると自動取得できます)")
-        else:
-            info("WiFi 名(SSID)を自動取得できませんでした。メニューバーの WiFi アイコン等で確認して入力してください")
+        info("WiFi 名(SSID)を自動取得できませんでした。メニューバーの WiFi アイコン等で確認して入力してください")
     while not ssid:
         ssid = input("    SSID を入力: ").strip()
 
     pw = None
     if platform.system() == "Darwin":
         hint = "(macOS の確認ダイアログが出ます。ログインパスワードを入れて「許可」)"
-    elif platform.system() == "Windows":
-        hint = ""
     else:
         hint = "(NetworkManager から読み取ります)"
     if ask_yes(f"保存済みのパスワードを PC から取得しますか?{hint}"):
@@ -673,6 +645,11 @@ def main() -> None:
 
     print("Clawd Heartbeat かんたんセットアップ")
     mode = "wifi" if a.wifi_only else a.mode
+    if platform.system() == "Windows":
+        # Windows の WiFi モードは検証で接続まで確認できなかったため対象外(USB モードのみ)
+        if mode == "wifi":
+            die("Windows では WiFi モードに対応していません。USB モード(--mode usb)を使ってください")
+        mode = "usb"
     if mode is None:
         step("接続方式を選んでください")
         mode = ask_mode()
