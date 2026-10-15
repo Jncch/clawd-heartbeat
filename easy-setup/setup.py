@@ -149,6 +149,10 @@ def open_serial(port: str) -> serial.Serial:
     s.dtr = False
     s.rts = False
     s.open()
+    # それでも環境によっては(macOS + FTDI 版で実測)開いた瞬間にリセットされる。
+    # 起動中(約 0.5 秒)に送ったコマンドは取りこぼされるので、起動が終わるまで待つ
+    time.sleep(1.5)
+    s.reset_input_buffer()
     return s
 
 
@@ -194,7 +198,7 @@ def esptool(*args: str) -> int:
 
 
 def flash(port: str, image: Path) -> None:
-    for baud in ("921600", "115200"):
+    for baud in ("460800", "115200"):   # 921600 は FTDI 版で失敗した(実測)
         info(f"書き込み中 ({baud} bps)...")
         rc = esptool("--chip", "esp32", "--port", port, "--baud", baud,
                      "write_flash", "0x0", str(image))
@@ -622,6 +626,7 @@ def main() -> None:
     ap.add_argument("--remove-bridge", action="store_true", help="USB モードの常駐中継を停止して自動起動を解除")
     ap.add_argument("--build", action="store_true", help="(開発者向け)ビルドして dist/ に bin を作るだけ")
     a = ap.parse_args()
+    sys.stdout.reconfigure(line_buffering=True)   # esptool の出力と順序が入れ替わらないように
 
     if a.build:
         build()

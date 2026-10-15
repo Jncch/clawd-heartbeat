@@ -396,10 +396,11 @@ void setup() {
   leds[0] = CRGB::Purple; FastLED.show();   // 接続中の目印
 
   prefs.begin("clawd", false);
-  wifiSsid = prefs.getString("ssid", "");
-  wifiPass = prefs.getString("pass", "");
+  // isKey で確認してから読む(未保存のキーを getString するとエラーログが出る)
+  wifiSsid = prefs.isKey("ssid") ? prefs.getString("ssid") : "";
+  wifiPass = prefs.isKey("pass") ? prefs.getString("pass") : "";
 
-  if (prefs.getString("mode", "wifi") == "usb") {
+  if (prefs.isKey("mode") && prefs.getString("mode") == "usb") {
     enterUsbMode();
     return;
   }
