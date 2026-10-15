@@ -100,11 +100,8 @@ def ask_yes(question: str, default: bool = True) -> bool:
 
 
 def mask(pw: str) -> str:
-    if not pw:
-        return "(なし)"
-    if len(pw) <= 2:
-        return "*" * len(pw)
-    return f"{pw[0]}{'*' * (len(pw) - 2)}{pw[-1]} ({len(pw)}文字)"
+    # 文字は一切出さない(ログやスクリーンショット経由の漏えいを避ける)
+    return f"{'*' * len(pw)} ({len(pw)}文字)" if pw else "(なし)"
 
 
 def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
