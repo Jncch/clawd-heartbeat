@@ -150,8 +150,9 @@ def find_port(explicit: str | None) -> str:
             for d in missing:
                 info(f"  {d}")
             info("- VID_0403(FTDI): 設定 → Windows Update → 詳細オプション → オプションの更新プログラム、")
-            info("  または FTDI 公式の VCP ドライバ(https://ftdichip.com/drivers/vcp-drivers/)を入れる")
-            info("- VID_1A86(CH9102): WCH 公式の CH343SER ドライバを入れる")
+            info("  または FTDI 公式の VCP ドライバを入れる: https://ftdichip.com/drivers/vcp-drivers/")
+            info("- VID_1A86(CH9102): M5Stack 公式のドライバを入れる: https://docs.m5stack.com/en/download")
+            info("  (どちらのドライバも M5Stack のページ「USB Driver」欄からも入手できます)")
             die("ドライバを入れてから再実行してください(管理者権限が必要です)")
         info("- 充電専用ケーブルでないか(データ通信対応のケーブルが必要)")
         info("- Windows では USB-シリアルのドライバ(FTDI / CH9102)が必要な場合があります")

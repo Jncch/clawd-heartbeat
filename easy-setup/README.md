@@ -33,6 +33,18 @@ Windows(PowerShell):
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
+### Windows: USB ドライバ(必要な場合のみ)
+
+Atom を挿しても COM ポートが現れない場合は、USB-シリアルのドライバを入れます(管理者権限が必要)。
+`setup.py` はドライバなしで認識されている Atom を見つけると、どちらの種類かを表示します。
+
+| Atom の USB チップ | デバイス ID | ドライバ |
+| --- | --- | --- |
+| FTDI | `VID_0403` | 設定 → Windows Update → 詳細オプション → オプションの更新プログラム、または [FTDI 公式 VCP ドライバ](https://ftdichip.com/drivers/vcp-drivers/) |
+| CH9102 | `VID_1A86` | [M5Stack 公式ダウンロードページ](https://docs.m5stack.com/en/download) の USB Driver 欄 |
+
+M5Stack のページには FTDI 用のドライバへのリンクもあります。
+
 ### 2. Atom を USB でつないで実行
 
 ```bash
@@ -87,7 +99,7 @@ bridge はシリアルポートを開いたままにします(Atom はポート�
 
 | 症状 | 対処 |
 | --- | --- |
-| Atom が見つからない | 充電専用ケーブルでないか確認。Windows は USB-シリアルのドライバが必要な場合あり(setup.py がドライバなしで認識されている機器を表示する)。FTDI 版(VID_0403)は Windows Update のオプションの更新プログラムか [FTDI 公式 VCP ドライバ](https://ftdichip.com/drivers/vcp-drivers/)、CH9102 版(VID_1A86)は WCH の CH343SER ドライバ |
+| Atom が見つからない | 充電専用ケーブルでないか確認。Windows は USB-シリアルのドライバが必要な場合あり(setup.py がドライバなしで認識されている機器を表示する)。入手先は「Windows: USB ドライバ」の節を参照 |
 | 書き込みに失敗する | Atom のボタン(LED 面)を押しながら USB を挿し直して再実行 |
 | SSID が見つからない | Atom は 2.4GHz のみ対応。5GHz 専用の SSID は使えない |
 | macOS で WiFi 名が自動で出ない | 最近の macOS は位置情報の許可がないと SSID を取得できない。手入力すれば、パスワードはキーチェーンから取得できる |
