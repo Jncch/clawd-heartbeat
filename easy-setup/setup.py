@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import json
+import locale
 import os
 import platform
 import re
@@ -104,8 +105,31 @@ def mask(pw: str) -> str:
     return f"{'*' * len(pw)} ({len(pw)}文字)" if pw else "(なし)"
 
 
+def decode(b: bytes) -> str:
+    # Windows の netsh はコードページ 932 の環境でもパイプ経由だと UTF-8 で出す(実測)ので、
+    # UTF-8 で読めなければロケールの文字コードで読み直す
+    try:
+        return b.decode("utf-8")
+    except UnicodeDecodeError:
+        return b.decode(locale.getpreferredencoding(False), "replace")
+
+
 def run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True, errors="replace", **kw)
+    r = subprocess.run(cmd, capture_output=True, **kw)
+    return subprocess.CompletedProcess(r.args, r.returncode, decode(r.stdout), decode(r.stderr))
+
+
+def driverless_devices() -> list[str]:
+    """Windows: USB 機器としては見えているが、ドライバがなく COM ポートになっていない Atom を探す"""
+    if platform.system() != "Windows":
+        return []
+    vids = "|".join(f"{v:04X}" for v in KNOWN_VIDS)
+    ps = (f"Get-PnpDevice -PresentOnly | Where-Object {{ $_.InstanceId -match 'VID_({vids})' -and $_.Status -ne 'OK' }}"
+          " | ForEach-Object { $_.FriendlyName + ' [' + $_.InstanceId + ']' }")   # " を使わない(引数のエスケープを避ける)
+    try:
+        return [l.strip() for l in run(["powershell", "-NoProfile", "-Command", ps]).stdout.splitlines() if l.strip()]
+    except FileNotFoundError:
+        return []
 
 
 # ---------------------------------------------------------------- ポート検出
@@ -121,8 +145,17 @@ def find_port(explicit: str | None) -> str:
         return p.device
     if not cands:
         info("Atom らしい USB シリアルが見つかりませんでした。")
+        missing = driverless_devices()
+        if missing:
+            info("USB 機器としては認識されていますが、ドライバが入っていません:")
+            for d in missing:
+                info(f"  {d}")
+            info("- VID_0403(FTDI): 設定 → Windows Update → 詳細オプション → オプションの更新プログラム、")
+            info("  または FTDI 公式の VCP ドライバ(https://ftdichip.com/drivers/vcp-drivers/)を入れる")
+            info("- VID_1A86(CH9102): WCH 公式の CH343SER ドライバを入れる")
+            die("ドライバを入れてから再実行してください(管理者権限が必要です)")
         info("- 充電専用ケーブルでないか(データ通信対応のケーブルが必要)")
-        info("- Windows では CH9102 ドライバが必要な場合があります")
+        info("- Windows では USB-シリアルのドライバ(FTDI / CH9102)が必要な場合があります")
         if ports:
             info("見つかったポート: " + ", ".join(p.device for p in ports))
         die("--port でポートを指定して再実行してください")
@@ -300,7 +333,12 @@ def ask_wifi() -> tuple[str, str]:
             ssid = None
     else:
         # macOS は位置情報の許可がないと SSID が伏せられる(パスワードは SSID さえ分かれば取れる)
-        info("WiFi 名(SSID)を自動取得できませんでした。メニューバーの WiFi アイコン等で確認して入力してください")
+        # Windows 11 24H2 以降も位置情報の許可がないと netsh wlan show interfaces が失敗する(実測)
+        if platform.system() == "Windows":
+            info("WiFi 名(SSID)を自動取得できませんでした。タスクバーの WiFi アイコンで確認して入力してください")
+            info("(設定 → プライバシーとセキュリティ → 位置情報 を許可すると自動取得できます)")
+        else:
+            info("WiFi 名(SSID)を自動取得できませんでした。メニューバーの WiFi アイコン等で確認して入力してください")
     while not ssid:
         ssid = input("    SSID を入力: ").strip()
 

@@ -143,6 +143,12 @@ class Link:
 link = Link()
 
 
+class Server(ThreadingHTTPServer):
+    # Windows では SO_REUSEADDR を付けると同じポートに 2 つ目のプロセスも bind できてしまい(実測)、
+    # 二重起動を検知できない。Windows だけ外す(他の OS では TIME_WAIT 中の再起動に必要なので残す)
+    allow_reuse_address = sys.platform != "win32"
+
+
 class Handler(BaseHTTPRequestHandler):
     def reply(self, code: int, body: str) -> None:
         data = body.encode()
@@ -186,7 +192,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     try:
-        srv = ThreadingHTTPServer((HOST, PORT), Handler)
+        srv = Server((HOST, PORT), Handler)
     except OSError as e:
         log(f"port {PORT} を使えません(既に起動している?): {e}")
         sys.exit(1)
