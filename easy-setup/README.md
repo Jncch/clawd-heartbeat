@@ -45,6 +45,15 @@ Atom を挿しても COM ポートが現れない場合は、USB-シリアルの
 
 M5Stack のページには FTDI 用のドライバへのリンクもあります。
 
+ドライバが zip(.inf 入り)の場合は、展開してから「管理者として実行」した PowerShell で入れられます。
+
+```powershell
+pnputil /add-driver "<展開したフォルダ>\*.inf" /install
+# 例: pnputil /add-driver "$env:USERPROFILE\Downloads\CDM-v2.12.36.20-WHQL-Certified\*.inf" /install
+```
+
+入れたあとに Atom を挿し直すと、COM ポートとして認識されます。
+
 ### 2. Atom を USB でつないで実行
 
 ```bash

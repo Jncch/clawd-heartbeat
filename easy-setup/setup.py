@@ -153,6 +153,8 @@ def find_port(explicit: str | None) -> str:
             info("  または FTDI 公式の VCP ドライバを入れる: https://ftdichip.com/drivers/vcp-drivers/")
             info("- VID_1A86(CH9102): M5Stack 公式のドライバを入れる: https://docs.m5stack.com/en/download")
             info("  (どちらのドライバも M5Stack のページ「USB Driver」欄からも入手できます)")
+            info("- ドライバの zip を展開したら、「管理者として実行」した PowerShell で入れられます:")
+            info('    pnputil /add-driver "<展開したフォルダ>\\*.inf" /install')
             die("ドライバを入れてから再実行してください(管理者権限が必要です)")
         info("- 充電専用ケーブルでないか(データ通信対応のケーブルが必要)")
         info("- Windows では USB-シリアルのドライバ(FTDI / CH9102)が必要な場合があります")
