@@ -75,6 +75,21 @@ uv run setup.py
 
 最後に Claude Code を再起動すれば完了です。
 
+## セットアップ後にリポジトリを消してもいいか
+
+消して大丈夫です。動作に必要なファイルは、セットアップ時に `~/.claude` の下へコピーされます。
+
+| 使うもの | 置き場所 |
+| --- | --- |
+| hook スクリプト | `~/.claude/led.sh` |
+| bridge(USB モード) | `~/.claude/clawd-heartbeat/bridge.py`(自動起動の登録もこのコピーを指す) |
+
+ただし次の点に注意してください。
+
+- **uv は残す**: bridge は `uv run` で起動するので、uv をアンインストールすると USB モードが動かなくなる
+- **uv のキャッシュを消した場合**: `uv cache clean` のあとは、bridge の次回起動時に pyserial をダウンロードし直すため、ネット接続が必要
+- **設定し直すときはもう一度 clone する**: WiFi の変更(`--wifi-only`)、bridge の解除(`--remove-bridge`)、ファームウェアの書き直しには `setup.py` が必要
+
 ## WiFi を変えたとき
 
 ```bash
