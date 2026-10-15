@@ -217,13 +217,16 @@ def read_until(s: serial.Serial, pred, timeout: float, echo: bool = False):
 
 def probe(port: str) -> str | None:
     """CLAWD? に応答すればその行を返す(easy-setup 版ファームが動いている)"""
-    with open_serial(port) as s:
-        for _ in range(3):
-            s.reset_input_buffer()
-            s.write(b"\nCLAWD?\n")
-            line = read_until(s, lambda l: l if l.startswith("CLAWD ") else None, 1.5)
-            if line:
-                return line
+    try:
+        with open_serial(port) as s:
+            for _ in range(3):
+                s.reset_input_buffer()
+                s.write(b"\nCLAWD?\n")
+                line = read_until(s, lambda l: l if l.startswith("CLAWD ") else None, 1.5)
+                if line:
+                    return line
+    except serial.SerialException as e:   # 開いたあとに抜かれた等
+        die(f"{port} との通信が切れました: {e}\n    (USB を挿し直して再実行してください)")
     return None
 
 
